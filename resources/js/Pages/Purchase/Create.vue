@@ -1,11 +1,29 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import {computed, ref } from "vue";
+
+const props = defineProps({
+    categories: {
+        type: Array,
+        default: []
+    }
+})
+
+const categoryInput = ref('')
+const filteredCategories = computed(() => {
+    return props.categories.filter(item => item.name.includes(categoryInput.value))
+})
 
 const form = useForm({
     name: "",
     amount: 0,
-    category: "",
+    category: null,
 });
+
+const categoryClick = (category) => {
+    categoryInput.value = category.name
+    form.category = category.id
+}
 </script>
 
 <template>
@@ -17,18 +35,27 @@ const form = useForm({
     >
         <label>
             name
-            <input type="text" v-model="form.name" />
+            <input id="name" value="name" type="text" v-model="form.name" />
         </label>
 
         <label>
             amount
-            <input type="number" v-model="form.amount" />
+            <input id="amount" value="amount" type="number" v-model="form.amount" />
         </label>
-        <label>
-            category
-            <input type="text" v-model="form.category" />
+
+        <label for="category">
+            Category
         </label>
-        <button type="submit">submit</button>
+
+        <div class="relative">
+            <input id="category" name="category" type="text" v-model="categoryInput" class="border" />
+            <div class="absolute top-10 border shadow rounded ">
+                <div class="min-w-64 cursor-pointer hover:bg-pink-100 text-pink-950"
+                    v-for="category in filteredCategories" :key="category.id" @click="categoryClick(category)">{{category.name}}</div>
+            </div>
+        </div>
+
+        <button>submit</button>
     </form>
 </template>
 

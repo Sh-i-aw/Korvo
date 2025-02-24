@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePurchaseRequest;
+use App\Models\Category;
 use App\Models\Purchase;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +16,8 @@ class PurchaseController extends Controller
     }
 
     public function create() {
-        return Inertia::render('Purchase/Create');
+        $categories = Category::all();
+        return Inertia::render('Purchase/Create', ['categories' => $categories] );
     }
     public function store (StorePurchaseRequest $request) {
         $data = $request->validated();
