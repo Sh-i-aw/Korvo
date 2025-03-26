@@ -17,12 +17,12 @@ const filteredCategories = computed(() => {
 const form = useForm({
     name: "",
     amount: 0,
-    category: null,
+    category_id: null,
 });
 
 const categoryClick = (category) => {
     categoryInput.value = category.name
-    form.category = category.id
+    form.category_id = category.id
 }
 </script>
 
