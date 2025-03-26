@@ -24,7 +24,7 @@ class StorePurchaseRequest extends FormRequest
         return [
             'name' => 'required|string',
             'amount' => 'required|numeric',
-            'category' => 'required|string',
+            'category_id' => 'required',
         ];
     }
 }
