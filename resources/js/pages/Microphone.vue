@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { dashboard, login, register } from '@/routes';
-import { Head, Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { useSpeechRecognition } from '@vueuse/core';
 import { Mic } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
@@ -19,13 +19,13 @@ const recognition = useSpeechRecognition({
 watch(recognition.result, (newResult) => {
     if (newResult) {
         speechResult.value = newResult;
+        talkToLlama();
     }
 });
 
 const talkToMe = () => {
     if (isListening.value) {
         recognition.stop();
-        talkToLlama();
     } else {
         recognition.start();
     }
@@ -33,14 +33,24 @@ const talkToMe = () => {
 };
 
 const talkToLlama = async () => {
-    const prompt = ` Given the following sentence:
-        ${speechResult.value}
-        parse out what type of macro the person has eaten, and how many grams,
-        only return the type of protein and grams, 2 words is sufficient as a response`;
-    console.log(prompt);
+    const prompt = `You are a nutrition parser. Analyze this sentence and extract macronutrient information:
 
+    "${speechResult.value}"
+
+    IMPORTANT: You must respond with ONLY a valid JSON object in this exact format:
+    {"Protein": 0, "Carbs": 0, "Fat": 0}
+
+    Rules:
+    - Use ONLY numeric values (no "g" suffix)
+    - If a nutrient is not mentioned, use 0
+    - Do not include any text, explanation, or formatting outside the JSON
+    - The JSON must be valid and parseable
+    - Example: If someone says "I ate 20g protein", respond with {"Protein": 20, "Carbs": 0, "Fat": 0}
+`;
+
+    console.log(prompt);
     try {
-        ollamaResult.value = 'Ollama is processing'
+        ollamaResult.value = 'Ollama is processing';
         const response = await fetch('/api/ollama/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -48,17 +58,44 @@ const talkToLlama = async () => {
                 model: 'llama3.2',
                 prompt: prompt,
                 stream: false,
+                options: {
+                    temperature: 0.1, // Lower temperature for more consistent output
+                    top_p: 0.9, // Focus on most likely tokens
+                    stop: ['\n\n', '```', 'Explanation:', 'Note:'], // Stop at common non-JSON patterns
+                },
             }),
         });
 
         if (!response.ok) {
-            console.log('Response status:', response.status);
-            ollamaResult.value = `Error: ${response.status}`;
+            console.error('Response status:', response.status);
+            const errorData = await response
+                .json()
+                .catch(() => ({ error: 'Unknown error' }));
+            ollamaResult.value = `Error: ${errorData.error || response.status}`;
             return;
         }
 
-        const responseText = await response.text();
-        ollamaResult.value = responseText || 'No response received';
+        const responseData = await response.json();
+        console.log(responseData, 'response from llama');
+
+        // Try to parse the response as JSON
+        try {
+            const parsedMacros = JSON.parse(responseData);
+            if (
+                parsedMacros &&
+                typeof parsedMacros === 'object' &&
+                'Protein' in parsedMacros &&
+                'Carbs' in parsedMacros &&
+                'Fat' in parsedMacros
+            ) {
+                ollamaResult.value = `Protein: ${parsedMacros.Protein}g, Carbs: ${parsedMacros.Carbs}g, Fat: ${parsedMacros.Fat}g`;
+            } else {
+                ollamaResult.value = `Invalid format: ${responseData}`;
+            }
+        } catch (error: any) {
+            ollamaResult.value = `Invalid JSON: ${responseData}`;
+            console.log(error.message)
+        }
     } catch (error) {
         console.error('Error calling Ollama:', error);
         ollamaResult.value = 'Error: Failed to get response from Ollama';
@@ -67,8 +104,6 @@ const talkToLlama = async () => {
 </script>
 
 <template>
-    <Head title="Welcome">
-    </Head>
     <div
         class="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]"
     >
@@ -100,22 +135,26 @@ const talkToLlama = async () => {
             </nav>
         </header>
         <div
-            class="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
+            class="flex flex-col w-full h-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
         >
-            <main class="flex-col items-center justify-center">
+
                 <button
                     @click="talkToMe"
                     class="rounded-full border-2 border-slate-800 p-10"
-                    :class="isListening ? 'bg-green-500' : 'bg-red-500'"
+                    :class="
+                        isListening
+                            ? 'border-slate-200 bg-green-500'
+                            : 'bg-slate-200'
+                    "
                 >
                     <Mic class="h-20 w-20" />
                 </button>
-                <p>
+                <div>
                     {{ recognition.result }}
-                </p>
+                </div>
 
-                <p>{{ ollamaResult }}</p>
-            </main>
+                <div>{{ ollamaResult }}</div>
+
         </div>
         <div class="hidden h-14.5 lg:block"></div>
     </div>

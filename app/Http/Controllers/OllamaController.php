@@ -18,24 +18,34 @@ class OllamaController extends Controller
             'stream' => 'boolean',
         ]);
 
-        // If NOT streaming, parse the response and return just the final text
-        $resp = Http::post('http://127.0.0.1:11434/api/generate', $payload);
+        $resp = Http::timeout(30)->post('http://127.0.0.1:11434/api/generate', $payload);
 
         if ($resp->successful()) {
             $body = $resp->body();
-//            Log::info('Ollama raw response body:', ['body' => $body]);
+            Log::info('Ollama raw response body:', ['body' => $body]);
 
             // Parse the single JSON response
-//            TODO: look up why associative has to be true here
             $data = json_decode($body, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Failed to parse Ollama response as JSON', [
+                    'body' => $body,
+                    'error' => json_last_error_msg()
+                ]);
+                return response()->json(['error' => 'Invalid response format from Ollama'], 500);
+            }
+
             $responseText = $data['response'] ?? 'No response received';
 
-            return response($responseText, 200)->withHeaders([
-                'Content-Type' => 'text/plain',
-            ]);
+            return response()->json($responseText);
         }
 
-        return response('Error: Failed to get response from Ollama', 500);
+        Log::error('Ollama request failed', [
+            'status' => $resp->status(),
+            'body' => $resp->body()
+        ]);
+
+        return response()->json(['error' => 'Failed to get response from Ollama'], 500);
 
     }
 }
