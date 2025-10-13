@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { dashboard, login, register } from '@/routes';
-import { Link } from '@inertiajs/vue3';
 import { useSpeechRecognition } from '@vueuse/core';
 import { useLlama} from '@/composables/useLlama';
 import { Mic } from 'lucide-vue-next';
@@ -42,36 +40,36 @@ const sendTextToLlama = async () => {
 }
 
 const talkToLlamaAboutMacro = async () => {
-    const prompt = `You are a nutrition parser. Analyze this sentence and extract macronutrient information:
+    const prompt = `You are a spending record parser. Analyze this sentence and extract information of a transaction:
 
     "${speechResult.value}"
 
     IMPORTANT: You must respond with ONLY a valid JSON object in this exact format:
-    {"Protein": 0, "Carbs": 0, "Fat": 0}
+    {"Amount": 12.29, "Date": "2015-09-26", "Category": "food"}
 
     Rules:
-    - Use ONLY numeric values (no "g" suffix)
-    - If a nutrient is not mentioned, use 0
-    - Do not include any text, explanation, or formatting outside the JSON
-    - The JSON must be valid and parseable
-    - Example: If someone says "I ate 20g protein", respond with {"Protein": 20, "Carbs": 0, "Fat": 0}
-`;
+    - return a 2 decimal number for amount
+    - if date is not mentioned, make it a date string of today, otherwise return yyyy-mm-dd
+    - infer category, for example (eat-out, health, food, gas, insurance)
+    - The JSON must be valid and parseable, if the value is a string, make sure it's wrapped in double quotes
+    - Example: If someone says "I spent seven forty-five on coffee", return  {"Amount": 7.45, "Date": "2025-10-13", "Category": "eat-out"}`
 
     ollamaResult.value = 'Ollama is processing';
 
     const responseData = await talkToLlama(prompt)
+    console.log(responseData)
 
     // Try to parse the response as JSON
     try {
-        const parsedMacros = JSON.parse(responseData);
+        const parsedSpending = JSON.parse(responseData);
         if (
-            parsedMacros &&
-            typeof parsedMacros === 'object' &&
-            'Protein' in parsedMacros &&
-            'Carbs' in parsedMacros &&
-            'Fat' in parsedMacros
+            parsedSpending &&
+            typeof parsedSpending === 'object' &&
+            'Amount' in parsedSpending &&
+            'Date' in parsedSpending &&
+            'Category' in parsedSpending
         ) {
-            ollamaResult.value = `Protein: ${parsedMacros.Protein}g, Carbs: ${parsedMacros.Carbs}g, Fat: ${parsedMacros.Fat}g`;
+            ollamaResult.value = `Amount: ${parsedSpending.Amount}, Date: ${parsedSpending.Date}, Category: ${parsedSpending.Category}`;
         } else {
             ollamaResult.value = `Invalid format: ${responseData}`;
         }
@@ -86,36 +84,10 @@ const talkToLlamaAboutMacro = async () => {
     <div
         class="flex h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]"
     >
-        <header
-            class="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl"
-        >
-            <nav class="flex items-center justify-end gap-4">
-                <Link
-                    v-if="$page.props.auth.user"
-                    :href="dashboard()"
-                    class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                >
-                    Dashboard
-                </Link>
-                <template v-else>
-                    <Link
-                        :href="login()"
-                        class="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
-                    >
-                        Log in
-                    </Link>
-                    <Link
-                        :href="register()"
-                        class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                    >
-                        Register
-                    </Link>
-                </template>
-            </nav>
-        </header>
         <div
             class="flex flex-col w-full h-full items-center justify-center gap-10 opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
         >
+            <h1> Spending Recording </h1>
 
                 <button
                     @click="talkToMe"

@@ -7,10 +7,13 @@ Route::get('/', function () {
     return Inertia::render('Welcome', []);
 })->name('home');
 
-Route::get('/microphone', function () {
-    return Inertia::render('Microphone', []);
-})->name('microphone');
+Route::get('/macro', function () {
+    return Inertia::render('Macro', []);
+})->name('macro');
 
+Route::get('/spending', function () {
+    return Inertia::render('Spending', []);
+})->name('spending');
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard', []);

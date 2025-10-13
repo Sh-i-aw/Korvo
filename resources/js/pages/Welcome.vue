@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { microphone, dashboard, login, register } from '@/routes';
+import { macro, spending, dashboard, login, register } from '@/routes';
 import { Head, Link } from '@inertiajs/vue3';
 </script>
 
@@ -15,10 +15,11 @@ import { Head, Link } from '@inertiajs/vue3';
             class="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl"
         >
             <nav class="flex items-center justify-end gap-4">
-                <Link
-                    :href="microphone()"
-                >
+                <Link :href="macro()">
                     Macro
+                </Link>
+                <Link :href="spending()">
+                    Spending
                 </Link>
                 <Link
                     v-if="$page.props.auth.user"
