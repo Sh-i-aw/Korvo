@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,7 +10,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OllamaController extends Controller
 {
-    public function generate(Request $request)
+    public function generate(Request $request): JsonResponse
     {
         // Validate incoming payload as needed
         $payload = $request->validate([

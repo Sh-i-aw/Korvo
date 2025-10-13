@@ -2,6 +2,7 @@
 import { dashboard, login, register } from '@/routes';
 import { Link } from '@inertiajs/vue3';
 import { useSpeechRecognition } from '@vueuse/core';
+import { useLlama} from '@/composables/useLlama';
 import { Mic } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
@@ -15,11 +16,13 @@ const recognition = useSpeechRecognition({
     lang: 'en-CA',
 });
 
+const { talkToLlama } = useLlama()
+
 // Watch for changes in recognition result and update speechResult
 watch(recognition.result, (newResult) => {
     if (newResult) {
         speechResult.value = newResult;
-        talkToLlama();
+        talkToLlamaAboutMacro();
     }
 });
 
@@ -32,7 +35,13 @@ const talkToMe = () => {
     isListening.value = !isListening.value;
 };
 
-const talkToLlama = async () => {
+
+const sendTextToLlama = async () => {
+    await talkToLlamaAboutMacro()
+    speechResult.value = ''
+}
+
+const talkToLlamaAboutMacro = async () => {
     const prompt = `You are a nutrition parser. Analyze this sentence and extract macronutrient information:
 
     "${speechResult.value}"
@@ -48,57 +57,27 @@ const talkToLlama = async () => {
     - Example: If someone says "I ate 20g protein", respond with {"Protein": 20, "Carbs": 0, "Fat": 0}
 `;
 
-    console.log(prompt);
+    ollamaResult.value = 'Ollama is processing';
+
+    const responseData = await talkToLlama(prompt)
+
+    // Try to parse the response as JSON
     try {
-        ollamaResult.value = 'Ollama is processing';
-        const response = await fetch('/api/ollama/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'llama3.2',
-                prompt: prompt,
-                stream: false,
-                options: {
-                    temperature: 0.1, // Lower temperature for more consistent output
-                    top_p: 0.9, // Focus on most likely tokens
-                    stop: ['\n\n', '```', 'Explanation:', 'Note:'], // Stop at common non-JSON patterns
-                },
-            }),
-        });
-
-        if (!response.ok) {
-            console.error('Response status:', response.status);
-            const errorData = await response
-                .json()
-                .catch(() => ({ error: 'Unknown error' }));
-            ollamaResult.value = `Error: ${errorData.error || response.status}`;
-            return;
+        const parsedMacros = JSON.parse(responseData);
+        if (
+            parsedMacros &&
+            typeof parsedMacros === 'object' &&
+            'Protein' in parsedMacros &&
+            'Carbs' in parsedMacros &&
+            'Fat' in parsedMacros
+        ) {
+            ollamaResult.value = `Protein: ${parsedMacros.Protein}g, Carbs: ${parsedMacros.Carbs}g, Fat: ${parsedMacros.Fat}g`;
+        } else {
+            ollamaResult.value = `Invalid format: ${responseData}`;
         }
-
-        const responseData = await response.json();
-        console.log(responseData, 'response from llama');
-
-        // Try to parse the response as JSON
-        try {
-            const parsedMacros = JSON.parse(responseData);
-            if (
-                parsedMacros &&
-                typeof parsedMacros === 'object' &&
-                'Protein' in parsedMacros &&
-                'Carbs' in parsedMacros &&
-                'Fat' in parsedMacros
-            ) {
-                ollamaResult.value = `Protein: ${parsedMacros.Protein}g, Carbs: ${parsedMacros.Carbs}g, Fat: ${parsedMacros.Fat}g`;
-            } else {
-                ollamaResult.value = `Invalid format: ${responseData}`;
-            }
-        } catch (error: any) {
-            ollamaResult.value = `Invalid JSON: ${responseData}`;
-            console.log(error.message)
-        }
-    } catch (error) {
-        console.error('Error calling Ollama:', error);
-        ollamaResult.value = 'Error: Failed to get response from Ollama';
+    } catch (error: any) {
+        ollamaResult.value = `Invalid JSON: ${responseData}`;
+        console.log(error.message)
     }
 };
 </script>
@@ -149,6 +128,22 @@ const talkToLlama = async () => {
                 >
                     <Mic class="h-20 w-20" />
                 </button>
+
+                <label>
+                    Or put the text here:
+                    <input
+                        type="text"
+                        class="border rounded-md border-blue-300 p-2"
+                        v-model="speechResult"
+                    />
+                </label>
+                <button
+                    class="bg-blue-200 font-md rounded-md p-2 border border-blue-800"
+                    @click="sendTextToLlama"
+                >
+                    Send to Llama
+                </button>
+
                 <div>
                     {{ `You said: "${speechResult}"`}}
                 </div>
