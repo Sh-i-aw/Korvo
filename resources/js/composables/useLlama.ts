@@ -1,11 +1,12 @@
-export const talkToLlama = async (prompt: string) => {
+export const talkToLlama = async (prompt: string, format: object) => {
     try {
         const response = await fetch('/api/ollama/generate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': "application/json" },
             body: JSON.stringify({
-                model: 'llama3.2',
+                model: 'gemma3:1b',
                 prompt: prompt,
+                format: format,
                 stream: false,
                 options: {
                     temperature: 0.1, // Lower temperature for more consistent output

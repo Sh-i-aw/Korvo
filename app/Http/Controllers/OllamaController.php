@@ -16,6 +16,7 @@ class OllamaController extends Controller
         $payload = $request->validate([
             'model'  => 'required|string',
             'prompt' => 'required|string',
+            "format" => 'required|array',
             'stream' => 'boolean',
         ]);
 
