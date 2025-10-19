@@ -1,26 +1,32 @@
 <script setup lang="ts">
-import { useSpeechRecognition } from '@vueuse/core';
 import { useLlama } from '@/composables/useLlama';
+import { TrackingCategory } from '@/enums/trackingCategory';
+import { usePromptHelper } from '@/utils/promptHelper';
+import { useSpeechRecognition } from '@vueuse/core';
 import { Mic } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
-const isListening = ref<boolean>(false);
-const ollamaResult = ref<string>('nothing yet');
-const speechResult = ref<string>('nothing yet');
+const props = defineProps<{
+    categories: string[];
+}>();
 
+const { getPromptAndFormat } = usePromptHelper(TrackingCategory.SPENDING);
+const { talkToLlama } = useLlama();
 const recognition = useSpeechRecognition({
     interimResults: false,
     continuous: true,
     lang: 'en-CA',
 });
 
-const { talkToLlama } = useLlama();
+const isListening = ref<boolean>(false);
+const ollamaResult = ref<string>('nothing yet');
+const speechResult = ref<string>('nothing yet');
 
 // Watch for changes in recognition result and update speechResult
 watch(recognition.result, (newResult) => {
     if (newResult) {
         speechResult.value = newResult;
-        talkToLlamaAboutMacro();
+        talkToLlamaAboutSpending();
     }
 });
 
@@ -34,47 +40,17 @@ const talkToMe = () => {
 };
 
 const sendTextToLlama = async () => {
-    await talkToLlamaAboutMacro();
+    await talkToLlamaAboutSpending();
     speechResult.value = '';
 };
 
-const talkToLlamaAboutMacro = async () => {
-    const prompt = `You are a spending record parser. Analyze this sentence and extract information such as vendor, items, amount, date, and category out of a transaction:
-
-    "${speechResult.value}"
-
-    IMPORTANT: You must respond with ONLY a valid JSON object that contains the keys (Date, Items, Vendor, Amount,Category), Amount should be a 2 decimal point number
-
-    Rules:
-    - return a 2 decimal number for amount
-    - if date is not mentioned, make it a date string of today, today is ${new Date().toDateString()} always return the date in format of yyyy-mm-dd
-    - infer category, for example (eat-out, health, food, gas, insurance)
-    - The JSON must be valid and parseable, if the value is a string, make sure it's wrapped in double quotes
-    - Example: If someone says "I spent 7.45 on coffee at Lucero", return  {"Amount": 7.45, "Items": "coffee", "Vendor": "Lucero", "Date": "2025-10-13", "Category": "eat-out"}`;
+const talkToLlamaAboutSpending = async () => {
+    const { prompt, format } = getPromptAndFormat(
+        speechResult.value,
+        props.categories,
+    );
 
     ollamaResult.value = 'Ollama is processing';
-
-    const format = {
-        type: 'object',
-        properties: {
-            Date: {
-                type: 'string',
-            },
-            Amount: {
-                type: 'number',
-            },
-            Items: {
-                type: 'string',
-            },
-            Vendor: {
-                type: 'string',
-            },
-            Category: {
-                type: 'string',
-            },
-        },
-        required: ['Date', 'Items', 'Vendor', 'Amount', 'Category'],
-    };
 
     const responseData = await talkToLlama(prompt, format);
     console.log({ prompt, responseData });

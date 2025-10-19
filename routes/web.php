@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Category;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -12,7 +13,7 @@ Route::get('/macro', function () {
 })->name('macro');
 
 Route::get('/spending', function () {
-    return Inertia::render('Spending', []);
+    return Inertia::render('Spending', ['categories' => Category::all()->pluck('name')]);
 })->name('spending');
 
 Route::get('dashboard', function () {
